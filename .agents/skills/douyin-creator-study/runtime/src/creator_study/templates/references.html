@@ -1,0 +1,3 @@
+{% macro refs(items) -%}
+{% if items %}<ul class="references">{% for ref in items %}<li><a href="{{ ref.url }}">{{ ref.label }}</a>{% if ref.snippet %}<span>{{ ref.snippet }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}

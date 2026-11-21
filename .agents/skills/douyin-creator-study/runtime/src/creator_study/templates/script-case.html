@@ -1,0 +1,34 @@
+{% set script = video.breakdown %}
+<section class="script-part">
+  <h4>开头说了什么，为什么这样说</h4>
+  <blockquote>“{{ script.opening.quote }}” <a href="{{ script.opening.url }}" aria-label="打开 {{ script.opening.time }} 的转写">{{ script.opening.time }}</a></blockquote>
+  <p>{{ script.opening.analysis }}</p>
+</section>
+<section class="script-part">
+  <h4>正文怎么推进</h4>
+  <p class="script-throughline">{{ script.throughline }}</p>
+  <ol class="script-beats">
+    {% for beat in script.beats %}
+    <li>
+      <a class="script-time" href="{{ beat.url }}" aria-label="打开 {{ beat.time }} 的转写">{{ beat.time }}</a>
+      <div class="script-beat-content">
+        <div><h5>{{ beat.title }}</h5><p>{{ beat.detail }}</p></div>
+        {% if beat.frame %}<figure class="script-frame">
+          <a href="{{ beat.frame.url }}"><img src="{{ beat.frame.url }}" alt="{{ beat.frame_note or beat.frame.caption }}" loading="lazy"></a>
+          <figcaption>{{ beat.frame.time }}{% if beat.frame_note %} · {{ beat.frame_note }}{% else %} 原作画面{% endif %}</figcaption>
+        </figure>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+<section class="script-part">
+  <h4>文案亮点</h4>
+  {% for item in script.highlights %}
+  <div class="script-highlight">
+    <h5>{{ item.title }}</h5>
+    <blockquote>“{{ item.quote }}” <a href="{{ item.url }}" aria-label="打开 {{ item.time }} 的转写">{{ item.time }}</a></blockquote>
+    <p>{{ item.analysis }}</p>
+  </div>
+  {% endfor %}
+</section>

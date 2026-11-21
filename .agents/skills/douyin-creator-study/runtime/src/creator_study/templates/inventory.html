@@ -1,0 +1,22 @@
+    <details class="inventory" {% if data.rows|length <= 12 %}open{% endif %}>
+      <summary>浏览作品清单 <span>{{ data.rows|length }} 条</span></summary>
+      <div class="toolbar">
+        <label>搜索标题或作品 ID <input id="filter" type="search" placeholder="输入关键词"></label>
+        <label>排序 <select id="order"><option value="date">发布时间</option>{% if data.duration_count %}<option value="duration">时长</option>{% endif %}{% for item in data.metrics if item.count %}<option value="{{ item.key }}">{{ item.label }}</option>{% endfor %}</select></label>
+        <label class="check"><input id="sample" type="checkbox"> 只看拆解样本</label>
+        <span id="row-count" aria-live="polite">{{ data.rows|length }} 条</span>
+      </div>
+      <div class="scroll-table" tabindex="0" role="region" aria-label="作品列表">
+        <table class="works">
+          <thead><tr><th>作品</th>{% if editorial %}<th>分类</th>{% endif %}<th>发布</th><th>时长</th>{% for item in data.metrics %}<th>{{ item.label }}</th>{% endfor %}</tr></thead>
+          <tbody id="works">{% for row in data.rows %}
+          <tr data-duration="{{ row.duration if row.duration is not none else '' }}" data-date="{{ row.date }}" data-sample="{{ '1' if row.sample else '0' }}"{% for item in data.metrics %} data-{{ item.key }}="{{ row[item.key] if row[item.key] is not none else '' }}"{% endfor %}>
+            <td data-search="{{ row.title }} {{ row.id }}{% if row.category %} {{ row.category }}{% endif %}">
+              {% if row.sample %}<a href="#video-{{ row.id }}">{{ row.title }}</a> <span class="pill">已选样</span>
+              {% elif row.url %}<a href="{{ row.url }}">{{ row.title }} ↗</a>{% else %}{{ row.title }}{% endif %}
+            </td>{% if editorial %}<td>{{ row.category }}</td>{% endif %}<td>{{ row.date }}</td><td>{{ row.duration|clock }}</td>
+            {% for item in data.metrics %}<td>{{ row[item.key]|number }}</td>{% endfor %}
+          </tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </details>

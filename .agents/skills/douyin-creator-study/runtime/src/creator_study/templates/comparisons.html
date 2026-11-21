@@ -1,0 +1,40 @@
+{% macro figure(shot, title) -%}
+<figure class="comparison-figure">
+  <a href="{{ shot.frame.url }}" aria-label="打开 {{ title }} {{ shot.frame.time }} 原图">
+    <img src="{{ shot.frame.url }}" alt="{{ title }} {{ shot.frame.time }} 的原作画面" loading="lazy">
+  </a>
+  <figcaption><a href="{{ shot.frame.url }}" aria-label="查看 {{ title }} {{ shot.frame.time }} 原图">{{ shot.frame.time }} ↗</a> {{ shot.note }}</figcaption>
+</figure>
+{%- endmacro %}
+
+<ol class="case-links" aria-label="对照问题导航">
+  {% for page in editorial.comparisons %}<li><a href="#comparison-{{ loop.index }}">{{ page.title }}</a></li>{% endfor %}
+</ol>
+{% for page in editorial.comparisons %}
+<article class="paper comparison-page" id="comparison-{{ loop.index }}" aria-labelledby="comparison-title-{{ loop.index }}">
+  <h3 id="comparison-title-{{ loop.index }}">{{ page.title }}</h3>
+  <p class="comparison-difference">{{ page.difference }}</p>
+  <div class="comparison-grid">
+    {% for work in page.works %}
+    {% set title = work.title.partition('#')[0].strip() %}
+    <article class="comparison-work"{% if work.anchor %} id="{{ work.anchor }}"{% endif %}>
+      <header class="comparison-work-header">
+        <h4>{% if work.url %}<a href="{{ work.url }}">{{ title }} ↗</a>{% else %}{{ title }}{% endif %}</h4>
+        <p class="comparison-meta">{{ work.date }}{% if work.likes is not none %} · {{ work.likes|number }} 点赞{% endif %}</p>
+        <p>{{ work.angle }}</p>
+      </header>
+      <section class="comparison-step comparison-opening">
+        <h5>开头怎么说</h5>
+        <blockquote>“{{ work.quote }}” <a href="{{ work.transcript_url }}">{{ work.quote_time }}</a></blockquote>
+        {{ figure(work.opening, title) }}
+      </section>
+      <section class="comparison-step comparison-visual">
+        <h5>{{ page.visual_heading }}</h5>
+        {{ figure(work.visual, title) }}
+      </section>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="comparison-action"><strong>值得一试</strong> {{ page.action }}</p>
+</article>
+{% endfor %}
