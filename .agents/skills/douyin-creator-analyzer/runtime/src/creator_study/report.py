@@ -34,14 +34,14 @@ SOURCES = {
 def required_text(record: dict, key: str) -> str:
     value = record.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise StudyError(f"analysis.json 缺少文字字段 {key}")
+        raise StudyError(f"analysis.json is missing the text field {key}")
     return value.strip()
 
 
 def records(data: dict, key: str) -> list[dict]:
     value = data.get(key)
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
-        raise StudyError(f"analysis.json 的 {key} 必须是对象数组")
+        raise StudyError(f"analysis.json field {key} must be an array of objects")
     return value
 
 
@@ -86,7 +86,7 @@ def evidence_index(run_dir: Path, posts: list[dict]) -> dict:
         if post.get("transcript"):
             path = run_dir / post["transcript"]
             if not path.is_file():
-                raise StudyError(f"找不到作品 {post_id} 的转写文件")
+                raise StudyError(f"Transcript file not found for post {post_id}")
             for segment in read_json(path):
                 index[(post_id, segment["id"])] = {
                     "label": f"{timecode(segment['start'])}–{timecode(segment['end'])} · 转写 · {post_id}",
@@ -99,16 +99,16 @@ def evidence_index(run_dir: Path, posts: list[dict]) -> dict:
 def evidence_refs(record: dict, index: dict, field: str = "evidence", owner: str | None = None) -> list[tuple]:
     value = record.get(field, [])
     if not isinstance(value, list) or (field == "evidence" and not value):
-        raise StudyError(f"每条分析需包含有效的 {field} 引用")
+        raise StudyError(f"Each entry must include valid {field} references")
     refs = []
     for ref in value:
         if not isinstance(ref, str) or ref.count("/") != 1:
-            raise StudyError(f"证据引用格式应为 作品ID/证据ID，收到 {ref!r}")
+            raise StudyError(f"Expected an evidence reference in post-id/evidence-id format, got {ref!r}")
         key = tuple(ref.split("/"))
         if key not in index:
-            raise StudyError(f"引用不存在的证据 {ref}")
+            raise StudyError(f"Unknown evidence reference: {ref}")
         if owner and key[0] != owner:
-            raise StudyError(f"逐条分析 {owner} 只能引用本作品的证据")
+            raise StudyError(f"The analysis for post {owner} must cite evidence from that post")
         if key not in refs:
             refs.append(key)
     return refs
@@ -170,7 +170,7 @@ def creator_takeaways(analysis: dict, index: dict) -> list[dict]:
     for item in records(analysis, "takeaways"):
         category = required_text(item, "category")
         if category not in CATEGORIES:
-            raise StudyError(f"未知的创作启发类别 {category}")
+            raise StudyError(f"Unknown takeaway category: {category}")
         takeaways.append({
             "category": CATEGORIES[category],
             **{key: required_text(item, key) for key in ("title", "observed", "how", "example", "check")},
@@ -203,10 +203,10 @@ def comparison_views(run_dir: Path, spec: dict, rows: dict, index: dict) -> list
     if proof_path.is_file():
         supplemental = read_json(proof_path)
         if not isinstance(supplemental, dict):
-            raise StudyError("comparison-evidence.json 必须是对象")
+            raise StudyError("comparison-evidence.json must be an object")
         extra = evidence_index(run_dir, records(supplemental, "posts"))
         if extra.keys() & index.keys():
-            raise StudyError("对照补充证据与原有证据使用了相同 ID")
+            raise StudyError("Supplemental comparison evidence reuses an existing ID")
         index = {**index, **extra}
 
     comparisons = []
@@ -214,25 +214,25 @@ def comparison_views(run_dir: Path, spec: dict, rows: dict, index: dict) -> list
     for page in records(spec, "comparisons"):
         entries = records(page, "works")
         if len(entries) != 2 or entries[0].get("post_id") == entries[1].get("post_id"):
-            raise StudyError("每个图文对照需要两条不同作品")
+            raise StudyError("Each comparison requires two distinct posts")
         works = []
         for item in entries:
             post_id = required_text(item, "post_id")
             if post_id not in rows:
-                raise StudyError(f"对照作品 {post_id} 不在作品清单中")
+                raise StudyError(f"Comparison post {post_id} is missing from the catalog")
             shots = {}
             for name in ("opening", "visual"):
                 shot = item.get(name)
                 if not isinstance(shot, dict):
-                    raise StudyError(f"对照作品 {post_id} 需要 {name} 画面")
+                    raise StudyError(f"Comparison post {post_id} requires a frame for {name}")
                 frame_id = required_text(shot, "frame_id")
                 frame = index.get((post_id, frame_id))
                 if not frame or frame["kind"] != "image":
-                    raise StudyError(f"找不到作品 {post_id} 的对照画面 {frame_id}")
+                    raise StudyError(f"Comparison frame {frame_id} not found for post {post_id}")
                 shots[name] = {"frame": frame, "note": required_text(shot, "note")}
             segments = [index[key] for key in evidence_refs(item["opening"], index, owner=post_id)]
             if any(segment["kind"] != "text" for segment in segments):
-                raise StudyError("开场原话需引用本作品的转写片段")
+                raise StudyError("The opening quote must cite its own post transcript")
             start = min(segment["start"] for segment in segments)
             end = max(segment["end"] for segment in segments)
             anchor = f"video-{post_id}" if post_id not in linked else None
@@ -259,14 +259,14 @@ def script_breakdown(entry: dict, index: dict, duration: float | None) -> dict |
         return None
     spec = entry["script_breakdown"]
     if not isinstance(spec, dict) or not isinstance(spec.get("opening"), dict):
-        raise StudyError("逐条文案拆解需要 script_breakdown 和 opening 对象")
+        raise StudyError("A script breakdown requires script_breakdown and opening objects")
     post_id = entry["post_id"]
 
     def excerpt(item: dict) -> dict:
         refs = [index[key] for key in evidence_refs(item, index, owner=post_id)]
         segments = [ref for ref in refs if ref["kind"] == "text"]
         if not segments:
-            raise StudyError(f"文案引用需要作品 {post_id} 的转写片段")
+            raise StudyError(f"Script quotes must cite transcript segments from post {post_id}")
         start = min(ref["start"] for ref in segments)
         end = max(ref["end"] for ref in segments)
         return {"quote": required_text(item, "quote"), "analysis": required_text(item, "analysis"),
@@ -277,10 +277,10 @@ def script_breakdown(entry: dict, index: dict, duration: float | None) -> dict |
         segment_id = required_text(item, "at")
         anchor = index.get((post_id, segment_id))
         if not anchor or anchor["kind"] != "text":
-            raise StudyError(f"找不到作品 {post_id} 的文案段落时间 {segment_id}")
+            raise StudyError(f"Script section timestamp {segment_id} not found for post {post_id}")
         start = anchor["start"]
         if beats and start <= beats[-1]["start"]:
-            raise StudyError(f"作品 {post_id} 的文案段落需要按时间递增")
+            raise StudyError(f"Script sections for post {post_id} must be in chronological order")
         refs = [index[key] for key in evidence_refs(item, index, owner=post_id)]
         frame = next((ref for ref in refs if ref["kind"] == "image"), None)
         frame_note = required_text(item, "frame_note") if frame and "frame_note" in item else ""
@@ -288,7 +288,7 @@ def script_breakdown(entry: dict, index: dict, duration: float | None) -> dict |
                       "start": start, "url": anchor["url"], "frame": frame, "frame_note": frame_note})
     highlights = [{"title": required_text(item, "title"), **excerpt(item)} for item in records(spec, "highlights")]
     if not beats or not highlights:
-        raise StudyError(f"作品 {post_id} 的文案拆解需要正文段落和文案亮点")
+        raise StudyError(f"The script breakdown for post {post_id} requires body sections and highlights")
     ends = [beat["start"] for beat in beats[1:]] + [duration]
     for beat, end in zip(beats, ends):
         beat["time"] = timecode(beat["start"])
@@ -307,7 +307,7 @@ def synthesis_view(spec: dict, index: dict) -> list[dict]:
         points = [{**{key: required_text(point, key) for key in ("title", "principle", "example")},
                    "refs": [index[key] for key in evidence_refs(point, index)]} for point in records(item, "points")]
         if not points:
-            raise StudyError("经验总结模块需要至少一个有证据的要点")
+            raise StudyError("Each learning module requires at least one evidence-backed point")
         modules.append({"title": required_text(item, "title"), "points": points,
                         "summary": required_text(item, "summary")})
     return modules
@@ -315,7 +315,7 @@ def synthesis_view(spec: dict, index: dict) -> list[dict]:
 
 def editorial_view(run_dir: Path, spec: dict, data: dict, observations: dict, index: dict) -> dict:
     if not isinstance(spec, dict):
-        raise StudyError("analysis.json 的 editorial 必须是对象")
+        raise StudyError("analysis.json field editorial must be an object")
     rows = {row["id"]: row for row in data["rows"]}
     membership = {}
     categories = []
@@ -323,17 +323,17 @@ def editorial_view(run_dir: Path, spec: dict, data: dict, observations: dict, in
         title = required_text(group, "title")
         ids = group.get("post_ids")
         if not isinstance(ids, list) or not ids:
-            raise StudyError(f"分类 {title} 需要至少一条作品 ID")
+            raise StudyError(f"Category {title} requires at least one post ID")
         for post_id in ids:
             if not isinstance(post_id, str) or post_id not in rows or post_id in membership:
-                raise StudyError(f"分类 {title} 中有无效或重复的作品 ID {post_id!r}")
+                raise StudyError(f"Category {title} contains an invalid or duplicate post ID {post_id!r}")
             membership[post_id] = title
         example = max((rows[post_id] for post_id in ids),
                       key=lambda row: row["likes"] if row["likes"] is not None else -1)
         categories.append({"title": title, "detail": required_text(group, "detail"), "example": example,
                            "count": len(ids), "share": round(len(ids) * 100 / len(rows), 1)})
     if set(membership) != set(rows):
-        raise StudyError("内容分类必须覆盖作品清单中的每条作品")
+        raise StudyError("Content categories must cover every catalog post")
     for row in rows.values():
         row["category"] = membership[row["id"]]
         row["sample"] = row["id"] in observations
@@ -345,7 +345,7 @@ def editorial_view(run_dir: Path, spec: dict, data: dict, observations: dict, in
     for item in records(spec, "readings"):
         post_id = required_text(item, "post_id")
         if post_id not in rows or post_id in reviewed:
-            raise StudyError(f"阅读记录包含无效或重复的作品 {post_id}")
+            raise StudyError(f"Sample readings contain an invalid or duplicate post ID {post_id}")
         reviewed[post_id] = {
             "title": rows[post_id]["title"], "category": membership[post_id],
             "rank": ranks.get(post_id), "url": rows[post_id]["url"],
@@ -353,10 +353,10 @@ def editorial_view(run_dir: Path, spec: dict, data: dict, observations: dict, in
             "refs": [index[key] for key in evidence_refs(item, index, owner=post_id)],
         }
     if set(reviewed) != {key[0] for key in index}:
-        raise StudyError("阅读记录必须覆盖每条有可引用证据的样本")
+        raise StudyError("Sample readings must cover every post with citable evidence")
     synthesis = synthesis_view(spec, index)
     if not synthesis:
-        raise StudyError("专题报告需要跨样本经验总结")
+        raise StudyError("An editorial report requires learning modules across the sample")
     return {
         "taxonomy": categories, "readings": list(reviewed.values()), "synthesis": synthesis,
         "comparisons": comparison_views(run_dir, spec, rows, index),
@@ -374,10 +374,10 @@ def render(run_dir: Path, analysis_path: Path) -> None:
     manifest = read_json(run_dir / "manifest.json")
     posts = manifest["posts"]
     if [post["id"] for post in posts] != manifest["selected_ids"]:
-        raise StudyError("证据准备尚未完成。请续跑 prepare")
+        raise StudyError("Evidence preparation is incomplete. Resume prepare first.")
     analysis = read_json(analysis_path)
     if not isinstance(analysis, dict) or analysis.get("schema_version") != 1:
-        raise StudyError("analysis.json 需要 schema_version = 1")
+        raise StudyError("analysis.json requires schema_version = 1")
     index = evidence_index(run_dir, posts)
     available = {key[0] for key in index}
     is_editorial = "editorial" in analysis
@@ -389,13 +389,13 @@ def render(run_dir: Path, analysis_path: Path) -> None:
     for entry in records(analysis, "videos"):
         post_id = required_text(entry, "post_id")
         if post_id not in available or post_id in observations:
-            raise StudyError(f"逐条分析包含无证据或重复的作品 {post_id}")
+            raise StudyError(f"Video analysis contains a duplicate post or a post without evidence: {post_id}")
         required_text(entry, "topic")
         required_text(entry, "observation")
         refs = evidence_refs(entry, index, owner=post_id)
         observations[post_id] = {**entry, "refs": [index[key] for key in refs]}
     if not observations or (not is_editorial and set(observations) != available):
-        raise StudyError("对每条有证据的作品提供一条 videos 记录")
+        raise StudyError("Provide a videos entry for each post with evidence")
     findings = []
     finding_records = records(analysis, "findings") if "findings" in analysis else []
     for item in finding_records:
@@ -415,11 +415,11 @@ def render(run_dir: Path, analysis_path: Path) -> None:
                           [("给谁看", "audience"), ("切入点", "angle"), ("开头怎么拍", "opener"), ("怎么验证", "test")]],
               "refs": [index[key] for key in evidence_refs(item, index)]} for item in idea_records]
     if not findings and not is_editorial:
-        raise StudyError("报告需要至少一条有证据的风格观察")
+        raise StudyError("The report requires at least one evidence-backed finding")
     if len(ideas) > 3:
-        raise StudyError("报告最多提供 3 张选题卡")
+        raise StudyError("The report accepts at most three topic ideas")
     if not (studies or takeaways or ideas or is_editorial):
-        raise StudyError("报告需要至少一篇创作精读、一条创作启发或一张选题卡")
+        raise StudyError("The report requires at least one study, takeaway, or topic idea")
 
     data = aggregate(manifest)
     editorial = editorial_view(run_dir, analysis["editorial"], data, observations, index) if is_editorial else None

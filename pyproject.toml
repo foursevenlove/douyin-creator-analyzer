@@ -1,2 +1,2 @@
 [tool.uv.workspace]
-members = [".agents/skills/douyin-creator-study/runtime"]
+members = [".agents/skills/douyin-creator-analyzer/runtime"]

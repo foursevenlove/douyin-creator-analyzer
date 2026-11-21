@@ -94,14 +94,14 @@ def video_index(directory: Path | None) -> dict[str, Path]:
     if directory is None:
         return {}
     if not directory.is_dir():
-        raise StudyError(f"找不到视频目录 {directory}")
+        raise StudyError(f"Video directory not found: {directory}")
     files = {}
     for path in sorted(directory.iterdir()):
         if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES:
             match = re.search(r"(?:^|[-_])(\d{8,25})$", path.stem)
             key = match[1] if match else f"local-{len(files) + 1:03d}"
             if key in files:
-                raise StudyError(f"视频目录包含重复作品 ID {key}")
+                raise StudyError(f"The video directory contains a duplicate post ID: {key}")
             files[key] = path.resolve()
     return files
 
@@ -110,22 +110,22 @@ def collect_local(snapshot: Path | None, links: Path | None, videos: Path | None
     files = video_index(videos)
     source = read_json(snapshot) if snapshot else {}
     if not isinstance(source, dict):
-        raise StudyError("作品快照必须是 JSON 对象")
+        raise StudyError("The snapshot must be a JSON object")
     items = source.get("posts", [])
     if not isinstance(items, list):
-        raise StudyError("作品快照的 posts 必须是列表")
+        raise StudyError("The snapshot must contain a posts array")
     account = source.get("account") or {}
     if not isinstance(account, dict):
-        raise StudyError("作品快照的 account 必须是对象")
+        raise StudyError("The snapshot account must be an object")
     normalized = {}
     for item in items:
         if not isinstance(item, dict):
-            raise StudyError("作品快照的每一项必须是对象")
+            raise StudyError("Each snapshot post must be an object")
         post_id = str(item.get("id") or item.get("aweme_id") or "")
         if not (VIDEO_ID.fullmatch(post_id) or re.fullmatch(r"local-\d+", post_id)):
-            raise StudyError(f"无效作品 ID {post_id!r}")
+            raise StudyError(f"Invalid post ID: {post_id!r}")
         if post_id in normalized:
-            raise StudyError(f"作品快照包含重复 ID {post_id}")
+            raise StudyError(f"The snapshot contains a duplicate post ID: {post_id}")
         stats = item.get("statistics") or {}
         media = local_path(snapshot.parent, item.get("media")) or files.get(post_id)
         if item.get("aweme_type") in (68, 150) and not media:
@@ -148,7 +148,7 @@ def collect_local(snapshot: Path | None, links: Path | None, videos: Path | None
                 continue
             post_id = douyin_id(line)
             if post_id is None:
-                raise StudyError(f"请在链接清单每行放一个抖音长视频链接。无法识别 {line!r}")
+                raise StudyError(f"Expected one canonical Douyin video URL per line. Unrecognized URL: {line!r}")
             normalized.setdefault(post_id, {"id": post_id, "url": post_url(post_id)})
     for post_id, path in files.items():
         if not snapshot and not links:
@@ -156,7 +156,7 @@ def collect_local(snapshot: Path | None, links: Path | None, videos: Path | None
         if post_id in normalized:
             normalized[post_id]["media"] = str(path)
     if not normalized:
-        raise StudyError("没有可分析的作品")
+        raise StudyError("No posts are available for analysis")
     return {
         "origin": "public_index" if source.get("origin") == "public_index" else "import",
         "account": account,
@@ -169,7 +169,7 @@ def select_posts(posts: list[dict], limit: int, strategy: str) -> tuple[list[dic
     if strategy == "top":
         ranked = [p for p in posts if p.get("likes") is not None]
         if not ranked:
-            raise StudyError("高赞排序需要至少一条带精确点赞数的作品")
+            raise StudyError("Ranking by likes requires at least one post with a recorded like count")
         ranked.sort(key=lambda p: (-p["likes"], -(p.get("published_at") or 0), p["id"]))
         return ranked[:limit], "snapshot_likes"
     dated = [p for p in posts if p.get("published_at") and p.get("likes") is not None]

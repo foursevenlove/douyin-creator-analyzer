@@ -1,5 +1,5 @@
 [project]
-name = "douyin-creator-study"
+name = "douyin-creator-analyzer"
 version = "0.1.0"
 description = "Evidence-backed Douyin creator research for Codex"
 requires-python = ">=3.11"
@@ -11,6 +11,7 @@ dependencies = ["jinja2>=3.1,<4", "pillow>=10,<14"]
 douyin = ["playwright>=1.51,<2", "yt-dlp>=2026.3.17"]
 
 [project.scripts]
+creator-analyzer = "creator_study.cli:main"
 creator-study = "creator_study.cli:main"
 
 [build-system]

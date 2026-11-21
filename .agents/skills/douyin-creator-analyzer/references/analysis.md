@@ -1,52 +1,52 @@
 # analysis.json
 
-Use `schema_version: 1`. Every `evidence` entry points to an inspected item such as `作品ID/f01` for a frame, `作品ID/t0001` for a transcript segment or `作品ID/audio-metrics` for local soundtrack measurements. The frame IDs and measurement fields are in `manifest.json`. Transcript segments with IDs, seconds and text are in each post's transcript file. The sample below shows structure only. Replace its references with evidence from the current run.
+Use `schema_version: 1`. Every `evidence` entry points to an inspected item such as `post-id/f01` for a frame, `post-id/t0001` for a transcript segment or `post-id/audio-metrics` for local soundtrack measurements. The frame IDs and measurement fields are in `manifest.json`. Transcript segments with IDs, seconds and text are in each post's transcript file. The sample below shows structure only. Replace its references with evidence from the current run.
 
 ```json
 {
   "schema_version": 1,
-  "title": "博主研究报告",
-  "summary": "概括这份报告针对原作精读的几个问题。",
+  "title": "Creator analysis report",
+  "summary": "Summarize the questions this report answers.",
   "studies": [
     {
-      "title": "为什么开场先给观众看成品界面？",
-      "observed": "用几个有时间定位的原作片段还原顺序。可用空行分段。",
-      "analysis": "解释这些选择怎样起作用，必要时用另一处原作来对照。",
-      "lesson": "说明读者通过这一段能理解什么，以及证据支持到哪里。",
+      "title": "Why show the finished interface in the opening?",
+      "observed": "Reconstruct the sequence using timestamped passages. Separate paragraphs with blank lines.",
+      "analysis": "Explain how these choices work, with another passage for comparison if helpful.",
+      "lesson": "Explain what a creator can learn and what the evidence supports.",
       "evidence": ["local-001/f01", "local-001/t0001"]
     }
   ],
   "videos": [
     {
       "post_id": "local-001",
-      "topic": "帮观众解决的具体问题",
-      "observation": "视频主题、脚本顺序与交付结果。有缺项就说明。",
-      "script": "标题、开头承诺和段落推进。",
-      "visual": "画面如何支撑口播或演示。",
-      "voice": "依据时间戳、转写措辞与本地混音指标描述。",
+      "topic": "The specific problem the video addresses",
+      "observation": "Describe the subject, script sequence, and result. Note any gaps in the evidence.",
+      "script": "Describe the title, opening promise, and progression.",
+      "visual": "Explain how the visuals support the narration or demonstration.",
+      "voice": "Use timestamps, transcript wording, and measured soundtrack properties.",
       "evidence": ["local-001/f01", "local-001/t0001"]
     }
   ],
   "findings": [
     {
       "category": "visuals",
-      "title": "可复用的做法",
-      "detail": "有哪些作品支持，机制只作为解释或假设。",
+      "title": "A technique worth studying",
+      "detail": "Name the supporting videos and explain how the technique may work.",
       "evidence": ["local-001/f01"],
       "counter_evidence": []
     }
   ],
   "ideas": [
     {
-      "title": "一个可拍的原创选题",
-      "audience": "受众及其具体问题",
-      "angle": "用创作者自己的案例或素材完成什么",
-      "opener": "前几秒可以实拍的画面和承诺",
-      "test": "如何用自己的发布数据或试看片验证",
+      "title": "An original topic for a video",
+      "audience": "The audience and its specific problem",
+      "angle": "What the creator can demonstrate with their own material",
+      "opener": "A filmable moment and a promise for the opening seconds",
+      "test": "How to test the idea with publishing data or a screening",
       "evidence": ["local-001/t0001"]
     }
   ],
-  "limitations": "样本选择、缺失项和结论适用范围。"
+  "limitations": "Sampling, missing evidence, and scope of the conclusions."
 }
 ```
 

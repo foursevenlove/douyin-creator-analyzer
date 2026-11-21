@@ -50,10 +50,10 @@ def install_model(path: Path) -> None:
             with urlopen(MODEL_URL, timeout=60) as response, temp.open("wb") as output:
                 shutil.copyfileobj(response, output)
             if sha256(temp) != MODEL_SHA256:
-                raise StudyError("默认 Whisper 模型校验失败")
+                raise StudyError("Default Whisper model checksum mismatch")
             temp.replace(path)
         except OSError as exc:
-            raise StudyError(f"下载本地 Whisper 模型失败。可从 {MODEL_URL} 下载后使用 --model 指定路径。") from exc
+            raise StudyError(f"Unable to download the local Whisper model. Download it from {MODEL_URL} and pass its path with --model.") from exc
 
 
 def run(command: list[str], timeout: int, label: str, *, diagnostics: bool = False) -> str:
@@ -62,11 +62,11 @@ def run(command: list[str], timeout: int, label: str, *, diagnostics: bool = Fal
             command, check=False, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout,
         )
     except FileNotFoundError as exc:
-        raise StudyError(f"缺少依赖 {command[0]}") from exc
+        raise StudyError(f"Required executable not found: {command[0]}") from exc
     except subprocess.TimeoutExpired as exc:
-        raise StudyError(f"{label}超时") from exc
+        raise StudyError(f"{label} timed out") from exc
     if result.returncode:
-        raise StudyError(f"{label}失败（退出码 {result.returncode}）")
+        raise StudyError(f"{label} failed (exit code {result.returncode})")
     return result.stderr if diagnostics else result.stdout
 
 
@@ -74,14 +74,14 @@ def probe(path: Path) -> tuple[float, bool]:
     data = json.loads(run([
         "ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type",
         "-of", "json", str(path),
-    ], 30, "媒体校验"))
+    ], 30, "Media validation"))
     try:
         duration = float(data["format"]["duration"])
     except (KeyError, ValueError, TypeError) as exc:
-        raise StudyError("无法读取视频时长") from exc
+        raise StudyError("Could not read the video duration") from exc
     types = {s["codec_type"] for s in data.get("streams", [])}
     if "video" not in types or not 0 < duration < 86400:
-        raise StudyError("文件没有有效的视频流或时长")
+        raise StudyError("The file has no valid video stream or duration")
     return duration, "audio" in types
 
 
@@ -106,7 +106,7 @@ def download(url: str, destination: Path, cookies: Path | None, downloader: str,
         else:
             command = ["yt-dlp" if downloader == "auto" else downloader]
         try:
-            run(command + options, 360, "抖音视频下载")
+            run(command + options, 360, "Douyin video download")
         except StudyError:
             if downloader != "auto" or cookies:
                 raise
@@ -114,16 +114,16 @@ def download(url: str, destination: Path, cookies: Path | None, downloader: str,
             for entry in temp.iterdir():
                 if entry.is_file():
                     entry.unlink()
-            run(["uvx", "--from", DOUYIN_YTDLP, "yt-dlp", *options], 360, "抖音视频下载（备用下载器）")
+            run(["uvx", "--from", DOUYIN_YTDLP, "yt-dlp", *options], 360, "Douyin video download (fallback downloader)")
         files = [p for p in temp.iterdir() if p.suffix.lower() in MEDIA_SUFFIXES]
         if len(files) != 1:
-            raise StudyError("下载器没有返回一个视频文件")
+            raise StudyError("The downloader did not produce a video file")
         data = read_json(temp / "video.info.json")
         post_id = douyin_id(url)
         if str(data.get("id")) != post_id:
-            raise StudyError("下载器返回的作品 ID 与请求不一致")
+            raise StudyError("The downloader returned a different post ID")
         if expected_author and data.get("channel_id") != expected_author:
-            raise StudyError("作品作者未能与目标博主核验一致")
+            raise StudyError("Could not verify the post author against the requested creator")
         metadata = {key: data[key] for key in ("id", "title", "timestamp", "like_count", "comment_count", "repost_count", "save_count", "view_count", "channel_id", "duration")
                     if data.get(key) is not None}
         probe(files[0])
@@ -152,11 +152,11 @@ def frames(path: Path, directory: Path, duration: float) -> list[dict]:
         run([
             "ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", str(second), "-i", str(path),
             "-frames:v", "1", "-vf", "scale='min(1080,iw)':-2", "-q:v", "3", str(target),
-        ], 45, "抽帧")
+        ], 45, "Frame extraction")
         if target.is_file() and target.stat().st_size > 0:
             records.append({"id": f"f{index:02}", "second": second, "file": target.name})
     if not records:
-        raise StudyError("未提取到画面")
+        raise StudyError("No frames were extracted")
     return records
 
 
@@ -165,7 +165,7 @@ def audio_evidence(path: Path, directory: Path, duration: float) -> dict:
     log = run([
         "ffmpeg", "-nostdin", "-hide_banner", "-i", str(path), "-map", "0:a:0",
         "-af", "ebur128=peak=true,silencedetect=noise=-35dB:d=0.30", "-f", "null", "-",
-    ], max(90, int(duration * .75)), "音轨测量", diagnostics=True)
+    ], max(90, int(duration * .75)), "Soundtrack measurement", diagnostics=True)
     summary = log.rsplit("Summary:", 1)[-1]
     loudness = re.search(r"I:\s+(-?\d+(?:\.\d+)?) LUFS", summary)
     peak = re.search(r"Peak:\s+(-?\d+(?:\.\d+)?) dBFS", summary)
@@ -180,7 +180,7 @@ def audio_evidence(path: Path, directory: Path, duration: float) -> dict:
         run([
             "ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", f"{start:.3f}", "-i", str(path),
             "-map", "0:a:0", "-t", f"{length:.3f}", "-codec:a", "libmp3lame", "-q:a", "5", str(output),
-        ], 60, "导出听音片段")
+        ], 60, "Audio preview export")
         if output.is_file() and output.stat().st_size > 0:
             clips.append({"id": key, "label": label, "start": round(start, 2), "end": round(start + length, 2),
                           "file": output.name})
@@ -218,16 +218,16 @@ def contact_sheet(directory: Path, records: list[dict]) -> Path:
 
 def transcript_segments(data: object, duration: float) -> list[dict]:
     if not isinstance(data, list):
-        raise StudyError("转写必须是包含 start、end、text 的数组")
+        raise StudyError("The transcript must be an array of segments with start, end, and text fields")
     normalized = []
     for entry in data:
         if not isinstance(entry, dict):
-            raise StudyError("转写片段必须是对象")
+            raise StudyError("Each transcript segment must be an object")
         start, end, text = (entry.get(field) for field in ("start", "end", "text"))
         if type(start) not in (int, float) or type(end) not in (int, float):
-            raise StudyError("转写时间需使用数值秒")
+            raise StudyError("Transcript times must be numbers in seconds")
         if not 0 <= start < end <= duration + 2:
-            raise StudyError("转写时间超出媒体范围或结束早于开始")
+            raise StudyError("Transcript times are outside the media duration or end before they start")
         if isinstance(text, str) and text.strip() and start < duration:
             normalized.append({"start": start, "end": min(end, duration), "text": text.strip()})
     normalized.sort(key=lambda item: (item["start"], item["end"]))
@@ -239,22 +239,22 @@ def transcribe(path: Path, directory: Path, duration: float, model: Path,
     if imported:
         return transcript_segments(read_json(imported), duration)
     if not model.is_file():
-        raise StudyError("缺少本地 Whisper 模型。先运行 creator-study setup-model")
+        raise StudyError("Local Whisper model missing. Run creator-analyzer setup-model first.")
     with TemporaryDirectory(dir=directory) as work:
         work = Path(work)
         audio, output = work / "audio.wav", work / "asr"
         run([
             "ffmpeg", "-nostdin", "-v", "error", "-y", "-i", str(path), "-map", "0:a:0",
             "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(audio),
-        ], 300, "提取音轨")
+        ], 300, "Audio extraction")
         run([
             executable, "--model", str(model), "--file", str(audio), "--language", language,
             "--output-json", "--output-file", str(output), "--no-prints",
-        ], max(180, int(duration * 4)), "本地语音转写")
+        ], max(180, int(duration * 4)), "Local speech transcription")
         raw = read_json(output.with_suffix(".json"))
         response = raw.get("transcription")
         if not isinstance(response, list):
-            raise StudyError("Whisper 返回了无法识别的转写格式")
+            raise StudyError("Whisper returned an unrecognized transcript format")
         segments = []
         for entry in response:
             offsets = entry["offsets"]

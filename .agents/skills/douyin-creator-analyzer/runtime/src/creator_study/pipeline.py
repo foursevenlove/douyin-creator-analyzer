@@ -17,7 +17,7 @@ def run_lock(directory: Path):
         try:
             connection.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as exc:
-            raise StudyError(f"另一个进程正在处理 {directory}") from exc
+            raise StudyError(f"Another process is using the run directory {directory}") from exc
         yield
 
 
@@ -26,7 +26,7 @@ def get_video(post: dict, directory: Path, cookies: Path | None, downloader: str
     if post.get("media"):
         candidate = Path(post["media"])
         if not candidate.is_file():
-            raise StudyError(f"找不到本地视频 {candidate.name}")
+            raise StudyError(f"Local video not found: {candidate.name}")
         return candidate, {}
     metadata_path = directory / "source.json"
     if metadata_path.is_file():
@@ -39,7 +39,7 @@ def get_video(post: dict, directory: Path, cookies: Path | None, downloader: str
                 if candidate.suffix.lower() in MEDIA_SUFFIXES and candidate.is_file():
                     return candidate, metadata
     if not post.get("url"):
-        raise StudyError("作品缺少视频路径或链接")
+        raise StudyError("The post is missing a video path or URL")
     return media.download(post["url"], directory / "source", cookies, downloader, expected_author)
 
 
@@ -136,7 +136,7 @@ def prepare(run_dir: Path, *, request: dict, load_catalog, args) -> dict:
         if snapshot_path.exists():
             snapshot = read_json(snapshot_path)
             if snapshot.get("request") != request:
-                raise StudyError("此任务目录已有不同来源或选样设置，请换一个 --out 目录。")
+                raise StudyError("This run used different sources or sampling settings. Choose a new --out directory.")
         else:
             result = load_catalog()
             selected, sampling = select_posts(result["posts"], args.limit, args.strategy)
@@ -169,7 +169,7 @@ def prepare(run_dir: Path, *, request: dict, load_catalog, args) -> dict:
             manifest["posts"].append({**public, **state})
             write_json(run_dir / "manifest.json", manifest)
         ready = sum(bool(p.get("frames") or p.get("transcript")) for p in manifest["posts"])
-        print(f"证据就绪 {ready}/{len(manifest['posts'])}。清单 {run_dir / 'manifest.json'}")
+        print(f"Evidence ready for {ready}/{len(manifest['posts'])} posts. Manifest: {run_dir / 'manifest.json'}")
         if not ready:
-            raise StudyError("当前样本均没有可用的画面或转写。请查看 manifest.json 的失败记录。")
+            raise StudyError("No sampled post has usable frames or a transcript. See manifest.json for details.")
         return manifest

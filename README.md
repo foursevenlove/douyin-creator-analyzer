@@ -1,90 +1,92 @@
-# 抖音博主研究 · Douyin Creator Study
+# Douyin Creator Analyzer
 
-输入**抖音号、主页链接或一组视频**，研究这位博主怎么做内容。报告先给账号全貌和内容分类，再深拆代表作，最后用更广的样本说明哪些创作做法值得学习。
+English | [简体中文](README.zh-CN.md)
 
-![第四种黑猩猩的报告预览，展示时长、互动和内容分析](docs/chaolab-report-preview.jpg)
+Analyze a Douyin creator from a handle, profile link, or set of videos. Get an account overview, examine representative videos one at a time, and learn how the creator chooses topics, structures scripts, and uses visuals.
 
-示例使用 **@chaolab（第四种黑猩猩）** 2026 年 7 月 28 日的 171 条历史视频记录。报告对全部视频归类，按原片顺序逐条拆解点赞最高的 5 条作品，再从 20 条高赞样本总结选题、文案和画面。[查看单片拆解预览](docs/chaolab-video-preview.jpg) · [抖音主页](https://www.douyin.com/user/MS4wLjABAAAAZwr8jX4xwZqPkdc-cJ2MVWvwh3d_rHxluq1ArMrcsBjZ32WONVrcLkvpNN7-Od99)
+![Sample report for @chaolab with video durations, engagement metrics, and content categories](docs/chaolab-report-preview.jpg)
 
-- **整体分析**包含内容分类、发布节奏、时长分布，以及单条互动的平均数、中位数和最大值。作品清单支持搜索、排序和筛选拆解样本。
-- **代表作拆解**引用开头原话，按时间拆开正文，解释文案亮点和相关画面的作用。
-- **经验与证据**分别提炼选题、文案和画面的关键点，逐点解释原理，附具体作品和时间戳。
-- **报告文件**包括可离线打开的 HTML、方便摘录的 Markdown 和可复核的证据清单。
+The sample report uses a July 28, 2026 snapshot of 171 videos from **@chaolab (第四种黑猩猩)**. It classifies the full catalog, breaks down the five most-liked videos in playback order, and draws on 20 high-engagement videos to explain recurring techniques. [Preview a video breakdown](docs/chaolab-video-preview.jpg) · [Douyin profile](https://www.douyin.com/user/MS4wLjABAAAAZwr8jX4xwZqPkdc-cJ2MVWvwh3d_rHxluq1ArMrcsBjZ32WONVrcLkvpNN7-Od99)
 
-## 在 Codex 安装
+- **Account overview** shows topic categories, posting activity, duration distribution, and mean, median, and maximum engagement. The video catalog is searchable and sortable.
+- **Video breakdowns** quote each opening, follow the script through its transitions, and explain the role of specific lines and frames.
+- **Creator lessons** organize takeaways by topic choice, writing, and visuals. Each principle includes examples and timestamps.
+- **Reports** are exported as offline HTML and Markdown, with an evidence manifest for verification. The bundled report interface uses Chinese labels.
 
-把下面这行发给 Codex，使用 `$skill-installer` 安装。
+## Install in Codex
+
+Send this to Codex to install the Skill.
 
 ```text
-请用 $skill-installer 安装 https://github.com/foursevenlove/douyin-creator-study/tree/main/.agents/skills/douyin-creator-study
+Use $skill-installer to install https://github.com/foursevenlove/douyin-creator-analyzer/tree/main/.agents/skills/douyin-creator-analyzer
 ```
 
-安装目录包含 Python CLI、HTML 模板与依赖锁文件，安装后可从任意工作目录发起研究。下一轮可以用下面的请求开始。
+The installation includes the Python CLI, report templates, and dependency lockfile. After installation, start a new turn from any workspace.
 
-> 用 $douyin-creator-study 分析抖音号 chaolab。先看作品数据与内容分布，深拆 5 条代表作，再用更广的样本总结选题、文案和画面风格。
+> Use $douyin-creator-analyzer to analyze @chaolab. Summarize its posting and engagement data, break down five representative videos, and explain what creators can learn from its topics, scripting, and visuals.
 
-首次运行会自动准备 Python 依赖。按输入类型配置需要的系统工具和模型。[macOS](.agents/skills/douyin-creator-study/references/setup.md#macos) · [Windows](.agents/skills/douyin-creator-study/references/setup.md#windows) · [Linux](.agents/skills/douyin-creator-study/references/setup.md#linux) · [模型与浏览器](.agents/skills/douyin-creator-study/references/setup.md#模型和浏览器)
+Python dependencies are provisioned on first use. Set up any missing system tools for your input. [macOS](.agents/skills/douyin-creator-analyzer/references/setup.md#macos) · [Windows](.agents/skills/douyin-creator-analyzer/references/setup.md#windows) · [Linux](.agents/skills/douyin-creator-analyzer/references/setup.md#linux) · [Speech model and browser](.agents/skills/douyin-creator-analyzer/references/setup.md#speech-model-and-browser)
 
-Whisper 在本机转写，FFmpeg 在本机抽帧和测量音轨。Codex 读取图片、转写和数值，沿用已登录的 Codex 服务，无需另配视觉、转写或文本 API Key。报告内可直接播放保存在任务目录的短音频。
+Whisper transcribes speech locally. FFmpeg extracts frames and measures the soundtrack. Codex analyzes the resulting text, images, and measurements using its existing session. The workflow requires no separate analysis or transcription API key.
 
-## 从源码运行
+## Run from source
 
-用 Codex 打开仓库也可以直接调用附带的 Skill。独立使用命令行时，在仓库根目录安装 Python 依赖。按[首次运行设置](.agents/skills/douyin-creator-study/references/setup.md)配置系统工具，下面的后两步对应需要转写和浏览器采集的场景。
+Open the repository in Codex to use the bundled Skill directly. For standalone CLI use, [set up system tools](.agents/skills/douyin-creator-analyzer/references/setup.md) and run these commands from the repository root.
 
 ```bash
 uv sync --locked --extra douyin
-uv run --locked creator-study setup-model
+uv run --locked creator-analyzer setup-model
 uv run --locked --extra douyin playwright install chromium
 ```
 
-只处理本地视频时，Python 环境可用 `uv sync --locked` 安装。构建 Python 分发包时，运行 `uv build --package douyin-creator-study`。
+Use the `douyin` extra for online retrieval and the Chromium install for profile collection. For local files, `uv sync --locked` is enough to install the Python dependencies. Run `setup-model` when local transcription is needed. Build the Python distribution with `uv build --package douyin-creator-analyzer`.
 
-## 采集来源与命令行
+## Inputs and CLI
 
-| 已有输入 | 适用方式 |
+| Input | Workflow |
 | --- | --- |
-| 抖音号或主页链接 | 启动项目专用 Chromium，读取可访问的作品列表，选样并下载 |
-| 作品链接清单 | 逐条下载，每行一个 `https://www.douyin.com/video/<id>` |
-| 本地视频目录 | 直接抽帧和转写 |
-| 作品快照 JSON | 用快照生成数据总览，结合链接或本地视频深读 |
+| Douyin handle or profile URL | List accessible posts with a dedicated Chromium profile, select a sample, and download it |
+| Post URL list | Download posts from a text file with one canonical Douyin video URL per line |
+| Local video directory | Extract frames and transcribe speech locally |
+| JSON snapshot | Compute catalog statistics and analyze posts using linked or local videos |
 
 ```bash
-uv run --extra douyin creator-study prepare chaolab --out runs/chaolab
-uv run --extra douyin creator-study prepare --links links.txt --out runs/links
-uv run creator-study prepare --videos ./videos --out runs/local
-uv run creator-study prepare --snapshot snapshot.json --videos ./videos --strategy top --out runs/snapshot
-uv run creator-study render --out runs/local
+uv run --extra douyin creator-analyzer prepare chaolab --out runs/chaolab
+uv run --extra douyin creator-analyzer prepare --links links.txt --out runs/links
+uv run creator-analyzer prepare --videos ./videos --out runs/local
+uv run creator-analyzer prepare --snapshot snapshot.json --videos ./videos --strategy top --out runs/snapshot
+uv run creator-analyzer render --out runs/local
 ```
 
-`prepare` 整理证据并保存进度。独立使用 CLI 时，先按[分析格式](.agents/skills/douyin-creator-study/references/analysis.md)写好 `analysis.json`，再运行 `render`。同一来源和取样配置可以用相同的 `--out` 续跑。更换来源或样本数量时使用新目录。
+`prepare` saves its evidence and progress. Standalone CLI users write `analysis.json` using the [analysis schema](.agents/skills/douyin-creator-analyzer/references/analysis.md) before running `render`. Reuse the same `--out` directory to resume with the same source and sampling options. Use a new directory when these options change.
 
-- 网页采集受抖音登录、验证和作品可见范围影响。运行 `uv run --extra douyin creator-study browser-login` 打开项目专用窗口，登录确认后窗口会自动关闭。提供主页链接时可配合 `--expect-handle <抖音号>` 核验账号。
-- Codex 可以用公开索引核对抖音号、主页和可下载作品，生成标明来源的索引样本报告。需要较完整的作品数据时，使用可访问的主页列表或已有快照。
-- 下载优先使用 yt-dlp，公开作品下载失败时会尝试[固定版本的备用下载器](https://github.com/yt-dlp/yt-dlp/pull/17826)。可用 `--downloader yt-dlp` 指定只用标准版，也可传入兼容可执行文件。手头已有经授权的 Netscape cookies 文件时，可通过 `--cookies` 指定。
-- 单次默认深读 12 条。同期作品数量和点赞覆盖足够时按近 90 天点赞分层，否则按已知日期或来源顺序。历史高赞使用 `--strategy top`。网页收集上限为 `min(80, 4 × 样本数)`，实际条数取决于访问结果。
+- Profile collection depends on what Douyin makes available. Run `uv run --extra douyin creator-analyzer browser-login` to sign in through the dedicated window. It closes after login is detected. Use `--expect-handle` with a direct profile URL to verify the handle.
+- Codex can use publicly indexed posts if a profile list is unavailable. For a more complete catalog, supply an accessible profile or a snapshot export.
+- Downloads use yt-dlp, with a [pinned fallback build](https://github.com/yt-dlp/yt-dlp/pull/17826) for public posts when needed. Use `--downloader yt-dlp` to select the standard downloader or `--cookies` with an authorized Netscape cookies file.
+- The default sample is 12 posts. With sufficient recent dates and likes, the sampler selects across engagement tiers from the last 90 days. Otherwise it uses the available chronology or source order. Use `--strategy top` to rank by recorded likes. Profile collection reads up to `min(80, 4 × sample size)` accessible posts.
 
 <details>
-<summary>快照和转写格式</summary>
+<summary>Snapshot and transcript formats</summary>
 
-快照是包含 `posts` 数组的 JSON。每条支持 `id`、`title`、`url`、`published_at`、`duration`、`likes`、`comments`、`favorites`、`shares`、`views`、`media` 和 `transcript`，也兼容旧快照里的 `aweme_id`、`desc`、`create_time`、`duration_ms` 和 `statistics`。
+A snapshot is a JSON object with a `posts` array. Each post can include `id`, `title`, `url`, `published_at`, `duration`, `likes`, `comments`, `favorites`, `shares`, `views`, `media`, and `transcript`. Older snapshots using `aweme_id`, `desc`, `create_time`, `duration_ms`, and `statistics` also work.
 
-本地文件名可用作品 ID 或 `01-<作品ID>.mp4` 与快照关联。`media` 和 `transcript` 支持相对快照的路径。导入的转写采用秒为单位，例如 `[{"start": 0.6, "end": 3.4, "text": "口播内容"}]`。
+Local filenames can match a snapshot by post ID or use `01-<post-id>.mp4`. The `media` and `transcript` paths can be relative to the snapshot. Imported transcript times are in seconds, as in `[{"start": 0.6, "end": 3.4, "text": "Spoken text"}]`.
 
 </details>
 
-## 输出文件
+## Outputs
 
-| 路径 | 内容 |
+| Path | Contents |
 | --- | --- |
-| `report.html` | 离线报告，含作品清单、关键帧、声音数据和试听 |
-| `report.md` | 分析正文和证据链接 |
-| `manifest.json` | 作品来源、取样方式、证据覆盖和失败记录 |
-| `evidence/` | 关键帧、转写文件和试听片段 |
+| `report.html` | Offline report with a post catalog, keyframes, soundtrack measurements, and local audio previews |
+| `report.md` | Text analysis with links to evidence |
+| `manifest.json` | Sources, sampling, evidence coverage, and processing errors |
+| `evidence/` | Keyframes, timestamped transcripts, and listening clips |
 
-移动 HTML 时，将它与 `evidence/` 一并保留。互动指标以来源记录为准，缺失在报告中显示为「—」。当作品已有互动而播放数字为零时，报告将播放量视为缺失。
+Keep `evidence/` alongside the HTML when moving a report. Missing metrics display as a dash. A zero view count on a post with recorded engagement is treated as missing.
 
-快照加本地视频、公开索引加在线下载两条流程都在 macOS Apple Silicon 实测至报告生成。Windows 和 Linux 提供了安装步骤，运行前可用 `ffmpeg -version`、`ffprobe -version` 和 `whisper-cli --help` 或指定的 Whisper 程序检查依赖。
+GitHub installation and local video analysis through report export were tested on macOS Apple Silicon. The platform setup guide also covers Windows and Linux.
 
-## 许可证
+## License
 
-项目代码遵循 [MIT](LICENSE)。报告截图中的作品画面属于原作者，浏览器会话与研究素材保存在本机。
+Project code is released under the [MIT License](LICENSE). The video frames in the sample reports belong to their original creators. Browser sessions and research material are stored locally.

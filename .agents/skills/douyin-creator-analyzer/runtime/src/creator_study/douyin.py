@@ -64,7 +64,7 @@ def browser(directory: Path, *, visible: bool = False):
     try:
         from playwright.sync_api import Error, sync_playwright
     except ImportError as exc:
-        raise StudyError("抖音网页采集需要 Playwright。请运行 uv sync --extra douyin") from exc
+        raise StudyError("Douyin web collection requires Playwright. Run the analyzer with the douyin extra.") from exc
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
         with sync_playwright() as playwright:
@@ -79,11 +79,11 @@ def browser(directory: Path, *, visible: bool = False):
     except Error as exc:
         details = str(exc)
         if "Executable doesn't exist" in details:
-            raise StudyError("Chromium 未安装。请在当前 Skill 的运行环境执行 playwright install chromium") from exc
+            raise StudyError("Chromium is missing. Run playwright install chromium in this runtime environment.") from exc
         lock_messages = ("ProcessSingleton", "SingletonLock", "Opening in existing browser session", "现有的浏览器会话中打开")
         if any(message in details for message in lock_messages):
-            raise StudyError("抖音专用浏览器正在使用这个资料目录。等当前登录或采集完成后再试。") from exc
-        raise StudyError("抖音网页未能打开或完成读取。检查网络，或检查专用浏览器是否还开着。") from exc
+            raise StudyError("This browser profile is in use. Retry after the current login or collection finishes.") from exc
+        raise StudyError("Unable to open or read the Douyin page. Check the connection and whether the dedicated browser is still open.") from exc
 
 
 def is_signed_in(page) -> bool:
@@ -101,16 +101,16 @@ def open_login(directory: Path) -> None:
                 choice.click(timeout=7_000)
             except Error:
                 pass
-        print("请在项目专用 Chromium 中完成抖音登录。检测到登录后窗口会自动关闭。", flush=True)
+        print("Sign in to Douyin in the dedicated Chromium window. It closes when login is detected.", flush=True)
         while not page.is_closed():
             if is_signed_in(page):
-                print("已确认项目专用浏览器登录。", flush=True)
+                print("Login confirmed in the dedicated browser.", flush=True)
                 return
             try:
                 page.wait_for_timeout(500)
             except Error:
                 break
-        raise StudyError("专用窗口关闭前未检测到有效登录。")
+        raise StudyError("The dedicated browser closed before login was detected.")
 
 
 def body_text(page) -> str:
@@ -119,7 +119,7 @@ def body_text(page) -> str:
 
 def require_public_page(text: str) -> None:
     if re.search(r"验证码中间页|请拖动滑块|请完成安全验证|访问过于频繁|请登录后查看|登录后才能查看", text):
-        raise StudyError("抖音页面需要登录或验证。可开启专用浏览器完成登录，或提供作品清单。")
+        raise StudyError("Douyin requires login or verification. Sign in using the dedicated browser or provide a post list.")
 
 
 def find_profile(page, handle: str) -> str:
@@ -129,12 +129,12 @@ def find_profile(page, handle: str) -> str:
     while time.monotonic() < deadline:
         matches = profile_candidates(page.evaluate(SEARCH_CARDS), handle)
         if len(matches) > 1:
-            raise StudyError(f"抖音号 {handle} 匹配到多个主页。请提供准确主页链接。")
+            raise StudyError(f"Multiple profiles matched the handle {handle}. Provide the exact profile URL.")
         if matches:
             return matches.pop()
         page.wait_for_timeout(450)
     require_public_page(page.title() + "\n" + body_text(page))
-    raise StudyError(f"网页搜索未能确认抖音号 {handle}。请提供主页链接，或先配置专用浏览器登录。")
+    raise StudyError(f"Web search could not verify the handle {handle}. Provide a profile URL or sign in using the dedicated browser.")
 
 
 def listed_posts(payload: dict, author_id: str) -> dict:
@@ -157,11 +157,11 @@ def listed_posts(payload: dict, author_id: str) -> dict:
 def collect_profile(target: str, directory: Path, cap: int, expected: str | None = None) -> dict:
     profile = profile_url(target)
     if expected and not profile:
-        raise StudyError("--expect-handle 必须与主页链接一起使用")
+        raise StudyError("--expect-handle requires a profile URL")
     handle = (expected or "").strip().removeprefix("@") if profile else target.strip().removeprefix("@")
     handle = handle or None
     if handle and not HANDLE.fullmatch(handle):
-        raise StudyError("请输入抖音号或 https://www.douyin.com/user/… 主页链接")
+        raise StudyError("Provide a Douyin handle or a profile URL such as https://www.douyin.com/user/…")
     known_path = directory / "verified-accounts.json"
     with browser(directory, visible=bool(directory.joinpath("Default").is_dir())) as page:
         known = read_json(known_path) if known_path.is_file() else {}
@@ -183,9 +183,9 @@ def collect_profile(target: str, directory: Path, cap: int, expected: str | None
             page.wait_for_timeout(400)
         labels = {label.casefold() for label in HANDLE_LABEL.findall(text)}
         if handle and handle.casefold() not in labels:
-            raise StudyError(f"打开的主页未显示与 {handle} 一致的抖音号。")
+            raise StudyError(f"The profile did not display the expected handle {handle}.")
         if profile_url(page.url) != profile:
-            raise StudyError("抖音将主页请求重定向到了其他页面。")
+            raise StudyError("Douyin redirected the profile request to a different page.")
         if handle:
             known[handle.casefold()] = profile
             write_json(known_path, known)
@@ -223,8 +223,8 @@ def collect_profile(target: str, directory: Path, cap: int, expected: str | None
             text = body_text(page)
             require_public_page(page.title() + "\n" + text)
             if "服务异常" in text:
-                raise StudyError("主页加载作品失败。可先完成抖音登录后重试，或导入作品快照。")
-            raise StudyError("主页没有读到可访问的视频作品。可补充作品链接或本地视频。")
+                raise StudyError("The profile posts failed to load. Sign in to Douyin and retry, or import a snapshot.")
+            raise StudyError("No accessible video posts were found. Provide post links or local videos.")
         name = page.title().split("的抖音", 1)[0].strip()
         if structured:
             # The structured endpoint proved the author. Omit unrelated DOM links.

@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.11"
 
 [[package]]
-name = "douyin-creator-study"
+name = "douyin-creator-analyzer"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
