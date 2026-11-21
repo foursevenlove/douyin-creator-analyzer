@@ -1,4 +1,4 @@
-"""Create a resumable run directory for Codex to analyze."""
+"""Create a resumable run directory for evidence preparation and analysis."""
 
 from __future__ import annotations
 

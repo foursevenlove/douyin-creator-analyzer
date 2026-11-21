@@ -13,25 +13,58 @@
 - **经验与证据**分别提炼选题、文案和画面的关键点，逐点解释原理，附具体作品和时间戳。
 - **报告文件**包括可离线打开的 HTML、方便摘录的 Markdown 和可复核的证据清单。
 
-## 在 Codex 安装
+## 在你的 Agent 中安装
 
-把下面这行发给 Codex，使用 `$skill-installer` 安装。
+项目采用 [Agent Skills 开放标准](https://agentskills.io/specification)。不同客户端共用一份 Skill，安装时会一起带上 Python CLI、报告模板和依赖锁文件。
+
+请使用支持 Agent Skills 的客户端版本。在准备使用 Skill 的工作目录运行 [Skills CLI](https://github.com/vercel-labs/skills) 并选择客户端。安装器需要 Node.js 22.20 或更新版本。
+
+```bash
+npx skills add foursevenlove/douyin-creator-analyzer --skill douyin-creator-analyzer
+```
+
+也可以直接指定客户端。下面以 Claude Code 为例，默认安装到当前项目。希望在所有项目里使用时，加上 `--global`。
+
+```bash
+npx --yes skills add foursevenlove/douyin-creator-analyzer --skill douyin-creator-analyzer --agent claude-code --yes
+```
+
+| 客户端 | 安装参数 | 官方文档 |
+| --- | --- | --- |
+| Claude Code | `claude-code` | [Claude Code Skills](https://code.claude.com/docs/en/skills) |
+| Cursor | `cursor` | [Cursor Agent Skills](https://cursor.com/docs/skills) |
+| Gemini CLI | `gemini-cli` | [Gemini CLI Agent Skills](https://geminicli.com/docs/cli/skills/) |
+| GitHub Copilot（CLI 或 VS Code） | `github-copilot` | [GitHub Copilot Agent Skills](https://docs.github.com/en/copilot/concepts/customizations/agent-skills) |
+| OpenCode | `opencode` | [OpenCode Skills](https://opencode.ai/docs/skills/) |
+| OpenClaw | `openclaw` | [OpenClaw Skills](https://docs.openclaw.ai/tools/skills) |
+| Codex | `codex` | [Codex Agent Skills](https://developers.openai.com/codex/skills/) |
+
+使用表外其他支持 Agent Skills 的客户端时，可以把整个 [Skill 目录](.agents/skills/douyin-creator-analyzer/)复制到它读取的目录，保留 `SKILL.md`、`runtime/` 和 `references/`。支持直接发现 `.agents/skills/` 的客户端也可以打开本仓库使用。
+
+<details>
+<summary>在 Codex 对话里直接安装</summary>
 
 ```text
 请用 $skill-installer 安装 https://github.com/foursevenlove/douyin-creator-analyzer/tree/main/.agents/skills/douyin-creator-analyzer
 ```
 
-安装目录包含 Python CLI、HTML 模板与依赖锁文件，安装后可从任意工作目录发起研究。下一轮可以用下面的请求开始。
+</details>
 
-> 用 $douyin-creator-analyzer 分析抖音号 chaolab。先看作品数据与内容分布，深拆 5 条代表作，再用更广的样本总结选题、文案和画面风格。
+## 使用 Skill
 
-首次运行会自动准备 Python 依赖。按输入类型配置需要的系统工具和模型。[macOS](.agents/skills/douyin-creator-analyzer/references/setup.md#macos) · [Windows](.agents/skills/douyin-creator-analyzer/references/setup.md#windows) · [Linux](.agents/skills/douyin-creator-analyzer/references/setup.md#linux) · [模型与浏览器](.agents/skills/douyin-creator-analyzer/references/setup.md#speech-model-and-browser)
+在工作目录开启一个新的 Agent 会话，直接点名使用 Skill。
 
-Whisper 在本机转写，FFmpeg 在本机抽帧和测量音轨。Codex 读取图片、转写和数值，沿用已登录的 Codex 服务，无需另配视觉、转写或文本 API Key。报告内可直接播放保存在任务目录的短音频。命令行提示使用英文，报告模板界面使用中文。
+> 用 douyin-creator-analyzer 分析抖音号 chaolab。先看作品数据与内容分布，深拆 5 条代表作，再用更广的样本总结选题、文案和画面风格。
+
+Claude Code 和 Cursor 也可以用 `/douyin-creator-analyzer`，Codex 可以用 `$douyin-creator-analyzer`。
+
+Agent 需要能够运行终端命令和访问工作区文件。能读取图片时可做画面分析。首次调用会由 uv 准备 Python 依赖，再按输入类型补齐 FFmpeg 等工具。[macOS](.agents/skills/douyin-creator-analyzer/references/setup.md#macos) · [Windows](.agents/skills/douyin-creator-analyzer/references/setup.md#windows) · [Linux](.agents/skills/douyin-creator-analyzer/references/setup.md#linux) · [模型与浏览器](.agents/skills/douyin-creator-analyzer/references/setup.md#speech-model-and-browser)
+
+Whisper 在本机转写，FFmpeg 在本机抽帧和测量音轨。Agent 用当前会话分析文字、画面和数值，无需为 Skill 另配分析或转写 API Key。命令行提示使用英文，报告模板界面使用中文。
 
 ## 从源码运行
 
-用 Codex 打开仓库也可以直接调用附带的 Skill。独立使用命令行时，在仓库根目录安装 Python 依赖。按[首次运行设置](.agents/skills/douyin-creator-analyzer/references/setup.md)配置系统工具，下面的后两步对应需要转写和浏览器采集的场景。
+也可以直接使用命令行。在仓库根目录安装 Python 依赖。按[首次运行设置](.agents/skills/douyin-creator-analyzer/references/setup.md)配置系统工具，下面的后两步对应需要转写和浏览器采集的场景。
 
 ```bash
 uv sync --locked --extra douyin
@@ -61,7 +94,7 @@ uv run creator-analyzer render --out runs/local
 `prepare` 整理证据并保存进度。独立使用 CLI 时，先按[分析格式](.agents/skills/douyin-creator-analyzer/references/analysis.md)写好 `analysis.json`，再运行 `render`。同一来源和取样配置可以用相同的 `--out` 续跑。更换来源或样本数量时使用新目录。
 
 - 网页采集受抖音登录、验证和作品可见范围影响。运行 `uv run --extra douyin creator-analyzer browser-login` 打开项目专用窗口，登录确认后窗口会自动关闭。提供主页链接时可配合 `--expect-handle <抖音号>` 核验账号。
-- Codex 可以用公开索引核对抖音号、主页和可下载作品，生成标明来源的索引样本报告。需要较完整的作品数据时，使用可访问的主页列表或已有快照。
+- Agent 可以用公开索引核对抖音号、主页和可下载作品，生成标明来源的索引样本报告。需要较完整的作品数据时，使用可访问的主页列表或已有快照。
 - 下载优先使用 yt-dlp，公开作品下载失败时会尝试[固定版本的备用下载器](https://github.com/yt-dlp/yt-dlp/pull/17826)。可用 `--downloader yt-dlp` 指定只用标准版，也可传入兼容可执行文件。手头已有经授权的 Netscape cookies 文件时，可通过 `--cookies` 指定。
 - 单次默认深读 12 条。同期作品数量和点赞覆盖足够时按近 90 天点赞分层，否则按已知日期或来源顺序。历史高赞使用 `--strategy top`。网页收集上限为 `min(80, 4 × 样本数)`，实际条数取决于访问结果。
 

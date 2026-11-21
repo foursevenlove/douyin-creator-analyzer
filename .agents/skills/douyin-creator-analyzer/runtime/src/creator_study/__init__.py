@@ -1,1 +1,1 @@
-"""Prepare creator research evidence and render Codex's findings."""
+"""Prepare creator research evidence and render analysis reports."""

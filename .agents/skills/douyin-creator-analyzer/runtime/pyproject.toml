@@ -1,7 +1,7 @@
 [project]
 name = "douyin-creator-analyzer"
 version = "0.1.0"
-description = "Evidence-backed Douyin creator research for Codex"
+description = "Evidence-backed Douyin creator research and offline reports"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]

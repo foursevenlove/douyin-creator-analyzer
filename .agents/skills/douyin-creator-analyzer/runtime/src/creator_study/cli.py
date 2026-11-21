@@ -1,4 +1,4 @@
-"""Command line interface shared by standalone and Codex workflows."""
+"""Command line interface for standalone and agent workflows."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # Full account report workflow
 
-Use this workflow with the [analysis schema](analysis.md). The agent writes the analysis from the prepared sources, then runs `creator-study render --out <run>` to export HTML and Markdown.
+Use this workflow with the [analysis schema](analysis.md). The agent writes the analysis from the prepared sources, then runs `creator-analyzer render --out <run>` to export HTML and Markdown.
 
 ## Overall data and content
 

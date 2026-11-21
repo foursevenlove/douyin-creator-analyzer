@@ -7,6 +7,8 @@ description: "Analyze a Douyin creator from a handle, profile, post links, or lo
 
 Use the project CLI to prepare real footage, timestamped transcripts, and keyframes. Inspect the evidence in the active session and give the reader a way to understand how the observed work was made.
 
+The workflow needs a shell and workspace file access. Image viewing is needed for visual analysis.
+
 ## Prepare
 
 1. Resolve `<skill>` to the directory containing this `SKILL.md`. Run the bundled CLI from the user's workspace with `uv run --locked --project "<skill>/runtime" creator-analyzer`. Add `--extra douyin` before `creator-analyzer` for live account or online video retrieval. For missing tools, browser setup, or the local speech model, follow [first-run setup](references/setup.md).
@@ -17,9 +19,9 @@ Use the project CLI to prepare real footage, timestamped transcripts, and keyfra
 
 Write the analysis in the language requested by the reader. The bundled report templates use Chinese interface labels.
 
-Read `manifest.json` to tell which items have actual frames and transcribed speech. Open the contact sheet with an image tool, then inspect individual frames at full size where needed, and read the available timestamped transcript. Quote short excerpts only where they support a claim. A file listed in the manifest is an available source, not evidence that you inspected it. Use only genuinely inspected frames and transcript segments in the analysis.
+Read `manifest.json` to tell which items have actual frames and transcribed speech. Use the client's image viewer to open the contact sheet, then inspect individual frames at full size where needed. Read the available timestamped transcript and quote short excerpts where they support a claim. If the client cannot open images, use the transcript and verified metadata and state that visual analysis was unavailable. Cite only frame and transcript evidence you inspected.
 
-Use images, timestamped transcript text and locally measured numbers as the inputs to Codex. For the sound section, use transcript timing and phrasing, `speech_units_per_minute` and the measured `audio` fields in the manifest. Report loudness and low-level segments as properties of the mixed track. The MP3 clips are local assets for the reader to play in the report. Keep audio files and audio payloads out of model inputs.
+Use images, timestamped transcript text and locally measured numbers as model inputs. For the sound section, use transcript timing and phrasing, `speech_units_per_minute` and the measured `audio` fields in the manifest. Report loudness and low-level segments as properties of the mixed track. The MP3 clips are local assets for the reader to play in the report. Keep audio files and audio payloads out of model inputs.
 
 For a complete account report, follow the [editorial workflow](references/editorial.md) and use the `editorial` format. The report shows average, median and maximum interactions, reads representative videos individually from their opening through their payoff, and puts a short numbered overview at the start of each learning module.
 
