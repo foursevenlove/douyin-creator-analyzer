@@ -35,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     collect.add_argument("--videos", type=path, help="Local video directory")
     collect.add_argument("--out", required=True, type=path, help="Run directory for outputs and resuming")
     collect.add_argument("--browser-profile", type=path, default=Path.home() / ".local/share/douyin-creator-study/browser")
+    collect.add_argument("--interactive-login", action="store_true",
+                         help="Open Chromium if profile access requires login, then retry after login")
     collect.add_argument("--cookies", type=path, help="Optional Netscape cookies file for yt-dlp")
     collect.add_argument("--downloader", default="auto", help="auto, douyin-pinned, or a yt-dlp-compatible executable")
     collect.add_argument("--model", type=path, default=default_model())
@@ -72,7 +74,10 @@ def main(argv: list[str] | None = None) -> int:
 
             def load_catalog():
                 if args.target:
-                    return collect_profile(args.target, args.browser_profile, min(80, args.limit * 4), args.expect_handle)
+                    return collect_profile(
+                        args.target, args.browser_profile, min(80, args.limit * 4), args.expect_handle,
+                        interactive_login=args.interactive_login,
+                    )
                 return collect_local(*local)
 
             prepare(args.out, request=request, load_catalog=load_catalog, args=args)

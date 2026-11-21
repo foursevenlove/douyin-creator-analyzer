@@ -14,6 +14,17 @@ HOME = "https://www.douyin.com"
 SESSION_COOKIES = {"sessionid", "sessionid_ss", "sid_guard"}
 PROFILE = re.compile(r"/user/([a-zA-Z0-9_-]{8,180})/?")
 HANDLE_LABEL = re.compile(r"抖音号[：:\s]*([a-zA-Z0-9_.-]{1,64})(?![a-zA-Z0-9_.-])")
+ACCESS_GATE = re.compile(
+    r"验证码中间页|请拖动滑块|请完成安全验证|"
+    r"登录后(?:才能|再)?(?:查看|继续|观看|访问)"
+)
+
+
+class DouyinAccessRequired(StudyError):
+    def __init__(self, url: str):
+        super().__init__("Douyin requires login or verification. Use --interactive-login to continue in Chromium.")
+        self.url = url
+
 
 # Capture only cards whose nearby DOM identifies a single author. Broad
 # ancestor matches could pair one account's handle with another card's link.
@@ -87,44 +98,55 @@ def browser(directory: Path, *, visible: bool = False):
 
 
 def is_signed_in(page) -> bool:
-    return any(item["name"] in SESSION_COOKIES for item in page.context.cookies(HOME))
+    return any(item["name"] in SESSION_COOKIES and item["value"] for item in page.context.cookies(HOME))
 
 
 def open_login(directory: Path) -> None:
     with browser(directory, visible=True) as page:
-        from playwright.sync_api import Error
+        wait_for_login(page, HOME)
 
-        page.goto(HOME, wait_until="domcontentloaded", timeout=30_000)
-        if not page.is_closed() and not is_signed_in(page):
-            try:
-                choice = page.get_by_text("登录", exact=True).first
-                choice.click(timeout=7_000)
-            except Error:
-                pass
-        print("Sign in to Douyin in the dedicated Chromium window. It closes when login is detected.", flush=True)
-        while not page.is_closed():
-            if is_signed_in(page):
-                print("Login confirmed in the dedicated browser.", flush=True)
+
+def wait_for_login(page, url: str) -> None:
+    from playwright.sync_api import Error
+
+    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    page.bring_to_front()
+    print(
+        "Waiting for Douyin login. Sign in in the dedicated Chromium window and complete any verification shown.",
+        flush=True,
+    )
+    if not page.is_closed():
+        try:
+            if not is_signed_in(page) or ACCESS_GATE.search(page.title() + "\n" + body_text(page)):
+                page.get_by_text("登录", exact=True).first.click(timeout=7_000)
+        except Error:
+            pass
+    while not page.is_closed():
+        try:
+            page.wait_for_timeout(500)
+            if is_signed_in(page) and not ACCESS_GATE.search(page.title() + "\n" + body_text(page)):
+                print("Douyin login confirmed. Continuing.", flush=True)
                 return
-            try:
-                page.wait_for_timeout(500)
-            except Error:
+        except Error:
+            if page.is_closed():
                 break
-        raise StudyError("The dedicated browser closed before login was detected.")
+    raise StudyError("The dedicated browser closed before login was detected.")
 
 
 def body_text(page) -> str:
     return page.locator("body").inner_text(timeout=5_000)
 
 
-def require_public_page(text: str) -> None:
-    if re.search(r"验证码中间页|请拖动滑块|请完成安全验证|访问过于频繁|请登录后查看|登录后才能查看", text):
-        raise StudyError("Douyin requires login or verification. Sign in using the dedicated browser or provide a post list.")
+def require_public_page(text: str, url: str) -> None:
+    if "访问过于频繁" in text:
+        raise StudyError("Douyin is limiting requests. Retry later or provide a post list.")
+    if ACCESS_GATE.search(text):
+        raise DouyinAccessRequired(url)
 
 
 def find_profile(page, handle: str) -> str:
-    page.goto(f"{HOME}/search/{quote(handle, safe='')}?type=user",
-              wait_until="domcontentloaded", timeout=30_000)
+    search_url = f"{HOME}/search/{quote(handle, safe='')}?type=user"
+    page.goto(search_url, wait_until="domcontentloaded", timeout=30_000)
     deadline = time.monotonic() + 12
     while time.monotonic() < deadline:
         matches = profile_candidates(page.evaluate(SEARCH_CARDS), handle)
@@ -132,8 +154,8 @@ def find_profile(page, handle: str) -> str:
             raise StudyError(f"Multiple profiles matched the handle {handle}. Provide the exact profile URL.")
         if matches:
             return matches.pop()
+        require_public_page(page.title() + "\n" + body_text(page), search_url)
         page.wait_for_timeout(450)
-    require_public_page(page.title() + "\n" + body_text(page))
     raise StudyError(f"Web search could not verify the handle {handle}. Provide a profile URL or sign in using the dedicated browser.")
 
 
@@ -154,7 +176,10 @@ def listed_posts(payload: dict, author_id: str) -> dict:
     return posts
 
 
-def collect_profile(target: str, directory: Path, cap: int, expected: str | None = None) -> dict:
+def collect_profile(
+    target: str, directory: Path, cap: int, expected: str | None = None, *,
+    interactive_login: bool = False,
+) -> dict:
     profile = profile_url(target)
     if expected and not profile:
         raise StudyError("--expect-handle requires a profile URL")
@@ -162,73 +187,89 @@ def collect_profile(target: str, directory: Path, cap: int, expected: str | None
     handle = handle or None
     if handle and not HANDLE.fullmatch(handle):
         raise StudyError("Provide a Douyin handle or a profile URL such as https://www.douyin.com/user/…")
+    try:
+        with browser(directory, visible=directory.joinpath("Default").is_dir()) as page:
+            return read_profile(page, directory, cap, profile, handle)
+    except DouyinAccessRequired as gate:
+        if not interactive_login:
+            raise
+        login_url = gate.url
+
+    with browser(directory, visible=True) as page:
+        wait_for_login(page, login_url)
+        try:
+            return read_profile(page, directory, cap, profile, handle)
+        except DouyinAccessRequired as exc:
+            raise StudyError("Douyin still blocked the requested page after login. Check access or provide a post list.") from exc
+
+
+def read_profile(page, directory: Path, cap: int, profile: str | None, handle: str | None) -> dict:
     known_path = directory / "verified-accounts.json"
-    with browser(directory, visible=bool(directory.joinpath("Default").is_dir())) as page:
-        known = read_json(known_path) if known_path.is_file() else {}
-        if not profile and handle:
-            profile = profile_url(known.get(handle.casefold()) or "") or find_profile(page, handle)
-        author_id = profile.rsplit("/", 1)[-1]
-        responses = []
-        page.on("response", lambda response: responses.append(response)
-                if urlparse(response.url).hostname == "www.douyin.com"
-                and urlparse(response.url).path.rstrip("/") == "/aweme/v1/web/aweme/post"
-                and response.ok else None)
-        page.goto(profile, wait_until="domcontentloaded", timeout=30_000)
-        # Wait for the profile itself or its access gate to become visible.
-        for _ in range(20):
-            text = body_text(page)
-            require_public_page(page.title() + "\n" + text)
-            if HANDLE_LABEL.search(text):
-                break
-            page.wait_for_timeout(400)
-        labels = {label.casefold() for label in HANDLE_LABEL.findall(text)}
-        if handle and handle.casefold() not in labels:
-            raise StudyError(f"The profile did not display the expected handle {handle}.")
-        if profile_url(page.url) != profile:
-            raise StudyError("Douyin redirected the profile request to a different page.")
-        if handle:
-            known[handle.casefold()] = profile
-            write_json(known_path, known)
-        posts = {}
-        structured = {}
-        idle = 0
-        for _ in range(16):
-            cards = page.evaluate(POST_CARDS)
-            before = len(posts)
-            for response in responses[:]:
-                responses.remove(response)
-                try:
-                    payload = response.json()
-                except (ValueError, RuntimeError):
-                    continue
-                if isinstance(payload, dict):
-                    structured.update(listed_posts(payload, author_id))
-            for post_id, record in structured.items():
-                posts[post_id] = record
-            for card in cards:
-                url = urljoin(HOME, card["url"])
-                post_id = douyin_id(url)
-                if post_id and post_id not in posts:
-                    posts[post_id] = {"id": post_id, "url": url, "title": card["title"]}
-                    if len(posts) >= cap:
-                        break
-            if len(posts) >= cap:
-                break
-            idle = idle + 1 if before == len(posts) else 0
-            if idle >= 4 and posts:
-                break
-            page.mouse.wheel(0, 1600)
-            page.wait_for_timeout(600)
-        if not posts:
-            text = body_text(page)
-            require_public_page(page.title() + "\n" + text)
-            if "服务异常" in text:
-                raise StudyError("The profile posts failed to load. Sign in to Douyin and retry, or import a snapshot.")
-            raise StudyError("No accessible video posts were found. Provide post links or local videos.")
-        name = page.title().split("的抖音", 1)[0].strip()
-        if structured:
-            # The structured endpoint proved the author. Omit unrelated DOM links.
-            posts = structured
+    known = read_json(known_path) if known_path.is_file() else {}
+    if not profile and handle:
+        profile = profile_url(known.get(handle.casefold()) or "") or find_profile(page, handle)
+    author_id = profile.rsplit("/", 1)[-1]
+    responses = []
+    page.on("response", lambda response: responses.append(response)
+            if urlparse(response.url).hostname == "www.douyin.com"
+            and urlparse(response.url).path.rstrip("/") == "/aweme/v1/web/aweme/post"
+            and response.ok else None)
+    page.goto(profile, wait_until="domcontentloaded", timeout=30_000)
+    # Wait for the profile itself or its access gate to become visible.
+    for _ in range(20):
+        text = body_text(page)
+        require_public_page(page.title() + "\n" + text, profile)
+        if HANDLE_LABEL.search(text):
+            break
+        page.wait_for_timeout(400)
+    labels = {label.casefold() for label in HANDLE_LABEL.findall(text)}
+    if handle and handle.casefold() not in labels:
+        raise StudyError(f"The profile did not display the expected handle {handle}.")
+    if profile_url(page.url) != profile:
+        raise StudyError("Douyin redirected the profile request to a different page.")
+    if handle:
+        known[handle.casefold()] = profile
+        write_json(known_path, known)
+    posts = {}
+    structured = {}
+    idle = 0
+    for _ in range(16):
+        cards = page.evaluate(POST_CARDS)
+        before = len(posts)
+        for response in responses[:]:
+            responses.remove(response)
+            try:
+                payload = response.json()
+            except (ValueError, RuntimeError):
+                continue
+            if isinstance(payload, dict):
+                structured.update(listed_posts(payload, author_id))
+        for post_id, record in structured.items():
+            posts[post_id] = record
+        for card in cards:
+            url = urljoin(HOME, card["url"])
+            post_id = douyin_id(url)
+            if post_id and post_id not in posts:
+                posts[post_id] = {"id": post_id, "url": url, "title": card["title"]}
+                if len(posts) >= cap:
+                    break
+        if len(posts) >= cap:
+            break
+        idle = idle + 1 if before == len(posts) else 0
+        if idle >= 4 and posts:
+            break
+        page.mouse.wheel(0, 1600)
+        page.wait_for_timeout(600)
+    if not posts:
+        text = body_text(page)
+        require_public_page(page.title() + "\n" + text, profile)
+        if "服务异常" in text:
+            raise StudyError("The profile posts failed to load. Sign in to Douyin and retry, or import a snapshot.")
+        raise StudyError("No accessible video posts were found. Provide post links or local videos.")
+    name = page.title().split("的抖音", 1)[0].strip()
+    if structured:
+        # The structured endpoint proved the author. Omit unrelated DOM links.
+        posts = structured
     return {
         "origin": "douyin_browser",
         "account": {"handle": handle or (next(iter(labels)) if len(labels) == 1 else None),

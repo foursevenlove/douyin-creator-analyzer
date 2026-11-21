@@ -84,7 +84,7 @@ uv run --locked --extra douyin playwright install chromium
 | 作品快照 JSON | 用快照生成数据总览，结合链接或本地视频深读 |
 
 ```bash
-uv run --extra douyin creator-analyzer prepare chaolab --out runs/chaolab
+uv run --extra douyin creator-analyzer prepare chaolab --interactive-login --out runs/chaolab
 uv run --extra douyin creator-analyzer prepare --links links.txt --out runs/links
 uv run creator-analyzer prepare --videos ./videos --out runs/local
 uv run creator-analyzer prepare --snapshot snapshot.json --videos ./videos --strategy top --out runs/snapshot
@@ -93,7 +93,7 @@ uv run creator-analyzer render --out runs/local
 
 `prepare` 整理证据并保存进度。独立使用 CLI 时，先按[分析格式](.agents/skills/douyin-creator-analyzer/references/analysis.md)写好 `analysis.json`，再运行 `render`。同一来源和取样配置可以用相同的 `--out` 续跑。更换来源或样本数量时使用新目录。
 
-- 网页采集受抖音登录、验证和作品可见范围影响。运行 `uv run --extra douyin creator-analyzer browser-login` 打开项目专用窗口，登录确认后窗口会自动关闭。提供主页链接时可配合 `--expect-handle <抖音号>` 核验账号。
+- 带 `--interactive-login` 采集时，遇到登录或验证拦截会自动打开项目专用 Chromium。请在该窗口登录并完成验证，确认后程序会重试原账号。也可以用 `uv run --extra douyin creator-analyzer browser-login` 提前登录。提供主页链接时可配合 `--expect-handle <抖音号>` 核验账号。
 - Agent 可以用公开索引核对抖音号、主页和可下载作品，生成标明来源的索引样本报告。需要较完整的作品数据时，使用可访问的主页列表或已有快照。
 - 下载优先使用 yt-dlp，公开作品下载失败时会尝试[固定版本的备用下载器](https://github.com/yt-dlp/yt-dlp/pull/17826)。可用 `--downloader yt-dlp` 指定只用标准版，也可传入兼容可执行文件。手头已有经授权的 Netscape cookies 文件时，可通过 `--cookies` 指定。
 - 单次默认深读 12 条。同期作品数量和点赞覆盖足够时按近 90 天点赞分层，否则按已知日期或来源顺序。历史高赞使用 `--strategy top`。网页收集上限为 `min(80, 4 × 样本数)`，实际条数取决于访问结果。

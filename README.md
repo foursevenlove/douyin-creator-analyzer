@@ -84,7 +84,7 @@ Use the `douyin` extra for online retrieval and the Chromium install for profile
 | JSON snapshot | Compute catalog statistics and analyze posts using linked or local videos |
 
 ```bash
-uv run --extra douyin creator-analyzer prepare chaolab --out runs/chaolab
+uv run --extra douyin creator-analyzer prepare chaolab --interactive-login --out runs/chaolab
 uv run --extra douyin creator-analyzer prepare --links links.txt --out runs/links
 uv run creator-analyzer prepare --videos ./videos --out runs/local
 uv run creator-analyzer prepare --snapshot snapshot.json --videos ./videos --strategy top --out runs/snapshot
@@ -93,7 +93,7 @@ uv run creator-analyzer render --out runs/local
 
 `prepare` saves its evidence and progress. Standalone CLI users write `analysis.json` using the [analysis schema](.agents/skills/douyin-creator-analyzer/references/analysis.md) before running `render`. Reuse the same `--out` directory to resume with the same source and sampling options. Use a new directory when these options change.
 
-- Profile collection depends on what Douyin makes available. Run `uv run --extra douyin creator-analyzer browser-login` to sign in through the dedicated window. It closes after login is detected. Use `--expect-handle` with a direct profile URL to verify the handle.
+- With `--interactive-login`, an access gate opens the dedicated Chromium window. Sign in and complete any verification shown there. Collection retries the original account once login is confirmed. You can also sign in first with `uv run --extra douyin creator-analyzer browser-login`. Use `--expect-handle` with a direct profile URL to verify the handle.
 - Your agent can use publicly indexed posts if a profile list is unavailable. For a more complete catalog, supply an accessible profile or a snapshot export.
 - Downloads use yt-dlp, with a [pinned fallback build](https://github.com/yt-dlp/yt-dlp/pull/17826) for public posts when needed. Use `--downloader yt-dlp` to select the standard downloader or `--cookies` with an authorized Netscape cookies file.
 - The default sample is 12 posts. With sufficient recent dates and likes, the sampler selects across engagement tiers from the last 90 days. Otherwise it uses the available chronology or source order. Use `--strategy top` to rank by recorded likes. Profile collection reads up to `min(80, 4 × sample size)` accessible posts.
